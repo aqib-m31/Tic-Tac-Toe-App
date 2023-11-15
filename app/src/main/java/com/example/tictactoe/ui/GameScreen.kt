@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.example.tictactoe.ui
 
 import androidx.annotation.DrawableRes
@@ -22,11 +24,15 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarColors
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
@@ -46,52 +52,89 @@ import com.example.tictactoe.data.Mark
 import com.example.tictactoe.data.Player
 import com.example.tictactoe.ui.theme.TicTacToeTheme
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TicTacToeApp() {
     val viewModel: GameViewModel = viewModel()
     val uiState = viewModel.uiState.collectAsState().value
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(dimensionResource(id = R.dimen.padding_medium))
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        if (!uiState.gameInProgress) {
-            GameStartScreen(
-                playerOneName = uiState.playerOne.name,
-                playerTwoName = uiState.playerTwo.name,
-                onPlayerOneNameChange = { viewModel.onPlayerOneNameChange(it) },
-                onPlayerTwoNameChange = { viewModel.onPlayerTwoNameChange(it) },
-                isXPlayerOneMark = uiState.playerOne.mark == Mark.X,
-                updatePlayerOneMark = { viewModel.updatePlayerMarks(it) },
-                isNameError = uiState.isNameError,
-                onStartGame = { viewModel.startGame() }
-            )
-        } else {
-            GameBoard(
-                boardState = uiState.boardState,
-                onMarkClick = { row, col, currentMark ->
-                    if (!uiState.isGameFinished) {
-                        viewModel.updateMove(
-                            row,
-                            col,
-                            currentMark
-                        )
-                    }
-                },
-                currentMark = uiState.currentMark,
-                currentTurn = uiState.currentTurn,
-                isGameFinished = uiState.isGameFinished,
-                winner = uiState.winner,
-                onOneMoreRound = { viewModel.restartGame() },
-                onReset = { viewModel.resetGame() }
-            )
-        }
+    Scaffold(
+        topBar = { GameAppBar() }
+    ) { contentPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(contentPadding)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            if (!uiState.gameInProgress) {
+                GameStartScreen(
+                    playerOneName = uiState.playerOne.name,
+                    playerTwoName = uiState.playerTwo.name,
+                    onPlayerOneNameChange = { viewModel.onPlayerOneNameChange(it) },
+                    onPlayerTwoNameChange = { viewModel.onPlayerTwoNameChange(it) },
+                    isXPlayerOneMark = uiState.playerOne.mark == Mark.X,
+                    updatePlayerOneMark = { viewModel.updatePlayerMarks(it) },
+                    isNameError = uiState.isNameError,
+                    onStartGame = { viewModel.startGame() }
+                )
+            } else {
+                GameBoard(
+                    boardState = uiState.boardState,
+                    onMarkClick = { row, col, currentMark ->
+                        if (!uiState.isGameFinished) {
+                            viewModel.updateMove(
+                                row,
+                                col,
+                                currentMark
+                            )
+                        }
+                    },
+                    currentMark = uiState.currentMark,
+                    currentTurn = uiState.currentTurn,
+                    isGameFinished = uiState.isGameFinished,
+                    winner = uiState.winner,
+                    onOneMoreRound = { viewModel.restartGame() },
+                    onReset = { viewModel.resetGame() }
+                )
+            }
 
+        }
     }
 
+
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GameAppBar(
+    modifier: Modifier = Modifier
+) {
+    CenterAlignedTopAppBar(
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            titleContentColor = MaterialTheme.colorScheme.primary,
+        ),
+        title = {
+            Row(
+                modifier = modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.mipmap.ic_launcher_foreground),
+                    contentDescription = null,
+                    modifier = modifier.size(50.dp)
+                )
+                Text(
+                    text = stringResource(id = R.string.app_name),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp
+                    )
+            }
+        },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
