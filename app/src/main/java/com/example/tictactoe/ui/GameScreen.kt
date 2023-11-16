@@ -3,6 +3,7 @@
 package com.example.tictactoe.ui
 
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -54,12 +55,19 @@ import com.example.tictactoe.ui.theme.TicTacToeTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+        /**
+         * The main composable function for the Tic Tac Toe app.
+         */
 fun TicTacToeApp() {
+    // Get the ViewModel and Collect the UI state from the ViewModel
     val viewModel: GameViewModel = viewModel()
     val uiState = viewModel.uiState.collectAsState().value
+
     Scaffold(
+        // Top app bar
         topBar = { GameAppBar() }
     ) { contentPadding ->
+        // Column for arranging its children vertically
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -68,6 +76,7 @@ fun TicTacToeApp() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // If the game is not in progress, show the game start screen
             if (!uiState.gameInProgress) {
                 GameStartScreen(
                     playerOneName = uiState.playerOne.name,
@@ -80,6 +89,7 @@ fun TicTacToeApp() {
                     onStartGame = { viewModel.startGame() }
                 )
             } else {
+                // If the game is in progress, show the game board
                 GameBoard(
                     board = uiState.boardState,
                     onSquareClick = { viewModel.handleMove(it) },
@@ -90,15 +100,16 @@ fun TicTacToeApp() {
                     currentTurn = viewModel.currentTurn()
                 )
             }
-
         }
     }
-
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+        /**
+         * Represents the top app bar for the Tic Tac Toe app.
+         * @param modifier The modifier to be applied to the app bar.
+         */
 fun GameAppBar(
     modifier: Modifier = Modifier
 ) {
@@ -128,8 +139,19 @@ fun GameAppBar(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
+        /**
+         * Represents the game start screen for the Tic Tac Toe app.
+         * @param playerOneName The name of the first player.
+         * @param playerTwoName The name of the second player.
+         * @param onPlayerOneNameChange A function to be invoked when the first player's name changes.
+         * @param onPlayerTwoNameChange A function to be invoked when the second player's name changes.
+         * @param isXPlayerOneMark Whether the first player's mark is X.
+         * @param updatePlayerOneMark A function to be invoked to update the first player's mark.
+         * @param isNameError Whether there's an error with the player names.
+         * @param onStartGame A function to be invoked to start the game.
+         * @param modifier The modifier to be applied to the screen.
+         */
 fun GameStartScreen(
     playerOneName: String,
     playerTwoName: String,
@@ -141,39 +163,76 @@ fun GameStartScreen(
     onStartGame: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    OutlinedTextField(
-        value = playerOneName, onValueChange = {
-            onPlayerOneNameChange(it)
-        },
-        label = {
-            Text(text = stringResource(R.string.player_1_name_label))
-        },
-        leadingIcon = {
-            Icon(
-                Icons.Filled.Person,
-                contentDescription = playerOneName
-            )
-        },
-        isError = isNameError,
-        singleLine = true,
+    PlayerNameField(
+        playerName = playerOneName,
+        onPlayerNameChange = onPlayerOneNameChange,
+        isNameError = isNameError,
+        label = R.string.player_1_name_label,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
     )
-    OutlinedTextField(
-        value = playerTwoName, onValueChange = { onPlayerTwoNameChange(it) },
-        label = {
-            Text(text = stringResource(R.string.player_2_name_label))
-        },
-        leadingIcon = {
-            Icon(
-                Icons.Filled.Person,
-                contentDescription = playerTwoName
-            )
-        },
-        isError = isNameError,
-        singleLine = true,
+    PlayerNameField(
+        playerName = playerTwoName,
+        onPlayerNameChange = onPlayerTwoNameChange,
+        isNameError = isNameError,
+        label = R.string.player_2_name_label,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
     )
 
+    MarkSelectionRow(isXPlayerOneMark = isXPlayerOneMark, updatePlayerOneMark = updatePlayerOneMark)
+
+    Text(
+        text = stringResource(R.string.choose_mark),
+        fontWeight = FontWeight.Bold,
+        fontSize = 24.sp,
+    )
+
+    Button(
+        onClick = onStartGame,
+        modifier = modifier.padding(dimensionResource(id = R.dimen.padding_large))
+    ) {
+        Text(text = stringResource(R.string.start_game))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+        /**
+         * Represents a text field for entering a player's name in the Tic Tac Toe game.
+         * @param playerName The current name of the player.
+         * @param onPlayerNameChange A function to be invoked when the player's name changes.
+         * @param isNameError Whether there's an error with the player's name.
+         */
+fun PlayerNameField(
+    playerName: String,
+    onPlayerNameChange: (name: String) -> Unit,
+    isNameError: Boolean,
+    @StringRes label: Int,
+    keyboardOptions: KeyboardOptions,
+    modifier: Modifier = Modifier
+) {
+    OutlinedTextField(
+        value = playerName,
+        onValueChange = { onPlayerNameChange(it) },
+        label = { Text(text = stringResource(label)) },
+        leadingIcon = { Icon(Icons.Filled.Person, contentDescription = playerName) },
+        isError = isNameError,
+        singleLine = true,
+        keyboardOptions = keyboardOptions
+    )
+}
+
+@Composable
+        /**
+         * Represents a row for selecting the mark (X or O) for a player in the Tic Tac Toe game.
+         * @param isXPlayerOneMark Whether the first player's mark is X.
+         * @param updatePlayerOneMark A function to be invoked to update the first player's mark.
+         * @param modifier The modifier to be applied to the row.
+         */
+fun MarkSelectionRow(
+    isXPlayerOneMark: Boolean,
+    updatePlayerOneMark: (Mark) -> Unit,
+    modifier: Modifier = Modifier
+) {
     Row(
         modifier = modifier
             .fillMaxSize()
@@ -200,21 +259,15 @@ fun GameStartScreen(
             }
         }
     }
-    Text(
-        text = stringResource(R.string.choose_mark),
-        fontWeight = FontWeight.Bold,
-        fontSize = 24.sp,
-    )
-
-    Button(
-        onClick = onStartGame,
-        modifier = modifier.padding(dimensionResource(id = R.dimen.padding_large))
-    ) {
-        Text(text = stringResource(R.string.start_game))
-    }
 }
 
 @Composable
+        /**
+         * Represents a square on the Tic Tac Toe game board.
+         * @param markImg The image resource ID for the mark (X or O) to be displayed in the square.
+         * @param onSquareClick A function to be invoked when the square is clicked.
+         * @param modifier The modifier to be applied to the square.
+         */
 fun Square(
     @DrawableRes markImg: Int?,
     onSquareClick: () -> Unit,
@@ -248,6 +301,14 @@ fun Square(
 }
 
 @Composable
+        /**
+         * Represents a button for selecting a mark (X or O) in the Tic Tac Toe game.
+         * @param mark The mark (X or O) represented by the button.
+         * @param markImg The image resource ID for the mark.
+         * @param onUpdateMark A function to be invoked to update the mark.
+         * @param elevated Whether the button should be elevated.
+         * @param modifier The modifier to be applied to the button.
+         */
 fun MarkButton(
     mark: Mark,
     @DrawableRes markImg: Int,
@@ -274,6 +335,17 @@ fun MarkButton(
 }
 
 @Composable
+        /**
+         * Represents the game board for the Tic Tac Toe game.
+         * @param board The game board represented as a list of marks.
+         * @param onSquareClick A function to be invoked when a square on the board is clicked.
+         * @param isGameFinished Whether the game has finished.
+         * @param winner The winner of the game.
+         * @param onReset A function to be invoked to reset the game.
+         * @param onOneMoreRound A function to be invoked to start one more round of the game.
+         * @param currentTurn The player whose turn it is.
+         * @param modifier The modifier to be applied to the game board.
+         */
 fun GameBoard(
     board: List<Mark?>,
     onSquareClick: (Int) -> Unit,
@@ -353,6 +425,12 @@ fun GameBoard(
 }
 
 @Composable
+        /**
+         * Represents the game controller for the Tic Tac Toe game.
+         * @param onReset A function to be invoked to reset the game.
+         * @param onOneMoreRound A function to be invoked to start one more round of the game.
+         * @param modifier The modifier to be applied to the game controller.
+         */
 fun GameController(
     onReset: () -> Unit,
     onOneMoreRound: () -> Unit,
