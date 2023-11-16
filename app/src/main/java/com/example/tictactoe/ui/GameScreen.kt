@@ -3,11 +3,10 @@
 package com.example.tictactoe.ui
 
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.BorderStroke
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -40,7 +38,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
@@ -58,12 +55,19 @@ import com.example.tictactoe.ui.theme.TicTacToeTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+        /**
+         * The main composable function for the Tic Tac Toe app.
+         */
 fun TicTacToeApp() {
+    // Get the ViewModel and Collect the UI state from the ViewModel
     val viewModel: GameViewModel = viewModel()
     val uiState = viewModel.uiState.collectAsState().value
+
     Scaffold(
+        // Top app bar
         topBar = { GameAppBar() }
     ) { contentPadding ->
+        // Column for arranging its children vertically
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -72,46 +76,40 @@ fun TicTacToeApp() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // If the game is not in progress, show the game start screen
             if (!uiState.gameInProgress) {
                 GameStartScreen(
                     playerOneName = uiState.playerOne.name,
                     playerTwoName = uiState.playerTwo.name,
                     onPlayerOneNameChange = { viewModel.onPlayerOneNameChange(it) },
                     onPlayerTwoNameChange = { viewModel.onPlayerTwoNameChange(it) },
-                    isXPlayerOneMark = uiState.playerOne.mark == Mark.X,
+                    isXPlayerOneMark = viewModel.isXPlayerOneMark(),
                     updatePlayerOneMark = { viewModel.updatePlayerMarks(it) },
                     isNameError = uiState.isNameError,
                     onStartGame = { viewModel.startGame() }
                 )
             } else {
+                // If the game is in progress, show the game board
                 GameBoard(
-                    boardState = uiState.boardState,
-                    onMarkClick = { row, col, currentMark ->
-                        if (!uiState.isGameFinished) {
-                            viewModel.updateMove(
-                                row,
-                                col,
-                                currentMark
-                            )
-                        }
-                    },
-                    currentMark = uiState.currentMark,
-                    currentTurn = uiState.currentTurn,
+                    board = uiState.boardState,
+                    onSquareClick = { viewModel.handleMove(it) },
                     isGameFinished = uiState.isGameFinished,
-                    winner = uiState.winner,
+                    winner = viewModel.getWinner(),
+                    onReset = { viewModel.resetGame() },
                     onOneMoreRound = { viewModel.restartGame() },
-                    onReset = { viewModel.resetGame() }
+                    currentTurn = viewModel.currentTurn()
                 )
             }
-
         }
     }
-
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+        /**
+         * Represents the top app bar for the Tic Tac Toe app.
+         * @param modifier The modifier to be applied to the app bar.
+         */
 fun GameAppBar(
     modifier: Modifier = Modifier
 ) {
@@ -141,8 +139,19 @@ fun GameAppBar(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
+        /**
+         * Represents the game start screen for the Tic Tac Toe app.
+         * @param playerOneName The name of the first player.
+         * @param playerTwoName The name of the second player.
+         * @param onPlayerOneNameChange A function to be invoked when the first player's name changes.
+         * @param onPlayerTwoNameChange A function to be invoked when the second player's name changes.
+         * @param isXPlayerOneMark Whether the first player's mark is X.
+         * @param updatePlayerOneMark A function to be invoked to update the first player's mark.
+         * @param isNameError Whether there's an error with the player names.
+         * @param onStartGame A function to be invoked to start the game.
+         * @param modifier The modifier to be applied to the screen.
+         */
 fun GameStartScreen(
     playerOneName: String,
     playerTwoName: String,
@@ -154,39 +163,76 @@ fun GameStartScreen(
     onStartGame: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    OutlinedTextField(
-        value = playerOneName, onValueChange = {
-            onPlayerOneNameChange(it)
-        },
-        label = {
-            Text(text = stringResource(R.string.player_1_name_label))
-        },
-        leadingIcon = {
-            Icon(
-                Icons.Filled.Person,
-                contentDescription = playerOneName
-            )
-        },
-        isError = isNameError,
-        singleLine = true,
+    PlayerNameField(
+        playerName = playerOneName,
+        onPlayerNameChange = onPlayerOneNameChange,
+        isNameError = isNameError,
+        label = R.string.player_1_name_label,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
     )
-    OutlinedTextField(
-        value = playerTwoName, onValueChange = { onPlayerTwoNameChange(it) },
-        label = {
-            Text(text = stringResource(R.string.player_2_name_label))
-        },
-        leadingIcon = {
-            Icon(
-                Icons.Filled.Person,
-                contentDescription = playerTwoName
-            )
-        },
-        isError = isNameError,
-        singleLine = true,
+    PlayerNameField(
+        playerName = playerTwoName,
+        onPlayerNameChange = onPlayerTwoNameChange,
+        isNameError = isNameError,
+        label = R.string.player_2_name_label,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
     )
 
+    MarkSelectionRow(isXPlayerOneMark = isXPlayerOneMark, updatePlayerOneMark = updatePlayerOneMark)
+
+    Text(
+        text = stringResource(R.string.choose_mark),
+        fontWeight = FontWeight.Bold,
+        fontSize = 24.sp,
+    )
+
+    Button(
+        onClick = onStartGame,
+        modifier = modifier.padding(dimensionResource(id = R.dimen.padding_large))
+    ) {
+        Text(text = stringResource(R.string.start_game))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+        /**
+         * Represents a text field for entering a player's name in the Tic Tac Toe game.
+         * @param playerName The current name of the player.
+         * @param onPlayerNameChange A function to be invoked when the player's name changes.
+         * @param isNameError Whether there's an error with the player's name.
+         */
+fun PlayerNameField(
+    playerName: String,
+    onPlayerNameChange: (name: String) -> Unit,
+    isNameError: Boolean,
+    @StringRes label: Int,
+    keyboardOptions: KeyboardOptions,
+    modifier: Modifier = Modifier
+) {
+    OutlinedTextField(
+        value = playerName,
+        onValueChange = { onPlayerNameChange(it) },
+        label = { Text(text = stringResource(label)) },
+        leadingIcon = { Icon(Icons.Filled.Person, contentDescription = playerName) },
+        isError = isNameError,
+        singleLine = true,
+        keyboardOptions = keyboardOptions
+    )
+}
+
+@Composable
+        /**
+         * Represents a row for selecting the mark (X or O) for a player in the Tic Tac Toe game.
+         * @param isXPlayerOneMark Whether the first player's mark is X.
+         * @param updatePlayerOneMark A function to be invoked to update the first player's mark.
+         * @param modifier The modifier to be applied to the row.
+         */
+fun MarkSelectionRow(
+    isXPlayerOneMark: Boolean,
+    updatePlayerOneMark: (Mark) -> Unit,
+    modifier: Modifier = Modifier
+) {
     Row(
         modifier = modifier
             .fillMaxSize()
@@ -213,21 +259,56 @@ fun GameStartScreen(
             }
         }
     }
-    Text(
-        text = stringResource(R.string.choose_mark),
-        fontWeight = FontWeight.Bold,
-        fontSize = 24.sp,
-    )
+}
 
-    Button(
-        onClick = onStartGame,
-        modifier = modifier.padding(dimensionResource(id = R.dimen.padding_large))
+@Composable
+        /**
+         * Represents a square on the Tic Tac Toe game board.
+         * @param markImg The image resource ID for the mark (X or O) to be displayed in the square.
+         * @param onSquareClick A function to be invoked when the square is clicked.
+         * @param modifier The modifier to be applied to the square.
+         */
+fun Square(
+    @DrawableRes markImg: Int?,
+    onSquareClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = Modifier
+            .size(dimensionResource(id = R.dimen.card_size_lg))
+            .padding(dimensionResource(id = R.dimen.padding_medium)),
+        shadowElevation = dimensionResource(id = R.dimen.card_elevation),
+        shape = RoundedCornerShape(16.dp)
     ) {
-        Text(text = stringResource(R.string.start_game))
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .clickable { onSquareClick() },
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            markImg?.let {
+                Image(
+                    painter = painterResource(id = markImg),
+                    contentDescription = null,
+                    modifier = modifier
+                        .padding(dimensionResource(id = R.dimen.padding_large)),
+                    colorFilter = ColorFilter.tint(color = MaterialTheme.colorScheme.onBackground)
+                )
+            }
+        }
     }
 }
 
 @Composable
+        /**
+         * Represents a button for selecting a mark (X or O) in the Tic Tac Toe game.
+         * @param mark The mark (X or O) represented by the button.
+         * @param markImg The image resource ID for the mark.
+         * @param onUpdateMark A function to be invoked to update the mark.
+         * @param elevated Whether the button should be elevated.
+         * @param modifier The modifier to be applied to the button.
+         */
 fun MarkButton(
     mark: Mark,
     @DrawableRes markImg: Int,
@@ -254,15 +335,25 @@ fun MarkButton(
 }
 
 @Composable
+        /**
+         * Represents the game board for the Tic Tac Toe game.
+         * @param board The game board represented as a list of marks.
+         * @param onSquareClick A function to be invoked when a square on the board is clicked.
+         * @param isGameFinished Whether the game has finished.
+         * @param winner The winner of the game.
+         * @param onReset A function to be invoked to reset the game.
+         * @param onOneMoreRound A function to be invoked to start one more round of the game.
+         * @param currentTurn The player whose turn it is.
+         * @param modifier The modifier to be applied to the game board.
+         */
 fun GameBoard(
+    board: List<Mark?>,
+    onSquareClick: (Int) -> Unit,
     isGameFinished: Boolean,
-    winner: Player?,
-    currentTurn: Player,
-    @DrawableRes currentMark: Int,
-    boardState: List<List<Pair<Boolean, Int>>>,
-    onMarkClick: (row: Int, col: Int, currentMark: Int) -> Unit,
+    winner: String,
     onReset: () -> Unit,
     onOneMoreRound: () -> Unit,
+    currentTurn: Player,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -273,43 +364,34 @@ fun GameBoard(
     ) {
         if (isGameFinished) {
             Text(
-                text = if (winner != null) "${winner.name} WON!" else "TIE",
+                text = winner,
                 fontWeight = FontWeight.Bold,
                 fontSize = 36.sp,
                 modifier = modifier.padding(vertical = dimensionResource(id = R.dimen.padding_medium))
             )
         }
+
         Card {
-            for (row in 0..2) {
-                Row(modifier = modifier.padding(dimensionResource(id = R.dimen.padding_small))) {
-                    for (col in 0..2) {
-                        Surface(
-                            modifier = Modifier
-                                .size(dimensionResource(id = R.dimen.card_size_lg))
-                                .padding(dimensionResource(id = R.dimen.padding_medium)),
-                            shadowElevation = dimensionResource(id = R.dimen.card_elevation),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Column(
-                                modifier = modifier
-                                    .fillMaxSize()
-                                    .clickable { onMarkClick(row, col, currentMark) },
-                                verticalArrangement = Arrangement.Center,
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                if (boardState[row][col].first) {
-                                    Image(
-                                        painter = painterResource(id = boardState[row][col].second),
-                                        contentDescription = null,
-                                        modifier = modifier
-                                            .padding(dimensionResource(id = R.dimen.padding_large)),
-                                        colorFilter = ColorFilter.tint(color = MaterialTheme.colorScheme.onBackground)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+            Row(
+                modifier = modifier.padding(dimensionResource(id = R.dimen.padding_small))
+            ) {
+                Square(markImg = board[0]?.markImg, onSquareClick = { onSquareClick(0) })
+                Square(markImg = board[1]?.markImg, onSquareClick = { onSquareClick(1) })
+                Square(markImg = board[2]?.markImg, onSquareClick = { onSquareClick(2) })
+            }
+            Row(
+                modifier = modifier.padding(dimensionResource(id = R.dimen.padding_small))
+            ) {
+                Square(markImg = board[3]?.markImg, onSquareClick = { onSquareClick(3) })
+                Square(markImg = board[4]?.markImg, onSquareClick = { onSquareClick(4) })
+                Square(markImg = board[5]?.markImg, onSquareClick = { onSquareClick(5) })
+            }
+            Row(
+                modifier = modifier.padding(dimensionResource(id = R.dimen.padding_small))
+            ) {
+                Square(markImg = board[6]?.markImg, onSquareClick = { onSquareClick(6) })
+                Square(markImg = board[7]?.markImg, onSquareClick = { onSquareClick(7) })
+                Square(markImg = board[8]?.markImg, onSquareClick = { onSquareClick(8) })
             }
         }
 
@@ -328,7 +410,8 @@ fun GameBoard(
                     modifier = modifier.padding(end = dimensionResource(id = R.dimen.padding_medium))
                 )
                 Image(
-                    painter = painterResource(id = currentMark), contentDescription = null,
+                    painter = painterResource(id = currentTurn.mark.markImg),
+                    contentDescription = null,
                     modifier = modifier
                         .clip(RoundedCornerShape(4.dp))
                         .background(MaterialTheme.colorScheme.primaryContainer)
@@ -342,6 +425,12 @@ fun GameBoard(
 }
 
 @Composable
+        /**
+         * Represents the game controller for the Tic Tac Toe game.
+         * @param onReset A function to be invoked to reset the game.
+         * @param onOneMoreRound A function to be invoked to start one more round of the game.
+         * @param modifier The modifier to be applied to the game controller.
+         */
 fun GameController(
     onReset: () -> Unit,
     onOneMoreRound: () -> Unit,
@@ -375,15 +464,15 @@ fun TicToeAppPreview() {
 @Composable
 fun GameBoardPreview() {
     TicTacToeTheme {
-        GameBoard(
-            currentTurn = Player(name = "ABC", mark = Mark.X),
-            currentMark = Mark.X.markImg,
-            boardState = List(3) { List(3) { false to Mark.X.markImg } },
-            onMarkClick = { _, _, _ -> run {} },
-            isGameFinished = true,
-            winner = Player(name = "ABC", mark = Mark.X),
-            onOneMoreRound = {},
-            onReset = {}
+        GameStartScreen(
+            playerOneName = "Mutaib",
+            playerTwoName = "Aqib",
+            onPlayerOneNameChange = {},
+            onPlayerTwoNameChange = {},
+            isXPlayerOneMark = false,
+            updatePlayerOneMark = {},
+            isNameError = false,
+            onStartGame = { /*TODO*/ }
         )
     }
 }
