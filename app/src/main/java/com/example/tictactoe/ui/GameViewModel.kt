@@ -9,22 +9,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * ViewModel for the Game. It holds the state of the UI and provides methods to update the state.
+ * GameViewModel is a ViewModel that manages and stores UI-related data for the game.
+ * It exposes both the game setup and board state for observers to react to changes.
  */
 class GameViewModel : ViewModel() {
-    /**
-     * MutableStateFlow for the UI state of the game.
-     */
-    private val _uiState = MutableStateFlow(GameUiState())
+    // Mutable state flow for game setup and board state, private to avoid external modification
+    private val _gameSetup = MutableStateFlow(GameSetup())
+    private val _boardState = MutableStateFlow(BoardState())
 
-    /**
-     * StateFlow for the UI state of the game.
-     */
-    val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
+    // Public state flow for game setup and board state, exposes the state for observers
+    val gameSetup: StateFlow<GameSetup> = _gameSetup.asStateFlow()
+    val boardState: StateFlow<BoardState> = _boardState.asStateFlow()
 
-    /**
-     * List of winning lines in the game.
-     */
+    // List of winning lines in the game. Each line is represented by a list of indices.
     private val lines: List<List<Int>> = listOf(
         listOf(0, 1, 2),
         listOf(3, 4, 5),
@@ -41,7 +38,7 @@ class GameViewModel : ViewModel() {
      * @param name The new name for Player One.
      */
     fun onPlayerOneNameChange(name: String) {
-        _uiState.update { currentState ->
+        _gameSetup.update { currentState ->
             currentState.copy(
                 playerOne = currentState.playerOne.copy(name = name)
             )
@@ -53,7 +50,7 @@ class GameViewModel : ViewModel() {
      * @param name The new name for Player Two.
      */
     fun onPlayerTwoNameChange(name: String) {
-        _uiState.update { currentState ->
+        _gameSetup.update { currentState ->
             currentState.copy(
                 playerTwo = currentState.playerTwo.copy(name = name)
             )
@@ -61,178 +58,119 @@ class GameViewModel : ViewModel() {
     }
 
     /**
-     * Updates the marks of the players based on the mark of Player One.
-     * @param playerOneMark The mark of Player One.
+     * Updates the marks of the players.
+     * @param playerOneMark The mark for Player One. Player Two's mark is automatically set to the other mark.
      */
     fun updatePlayerMarks(playerOneMark: Mark) {
-        _uiState.update { currentState ->
-            if (playerOneMark == Mark.X) {
-                currentState.copy(
-                    playerOne = currentState.playerOne.copy(mark = Mark.X),
-                    playerTwo = currentState.playerTwo.copy(mark = Mark.O),
-                )
-            } else {
-                currentState.copy(
-                    playerOne = currentState.playerOne.copy(mark = Mark.O),
-                    playerTwo = currentState.playerTwo.copy(mark = Mark.X),
-                )
-            }
+        _gameSetup.update { currentState ->
+            currentState.updateMarks(playerOneMark)
         }
     }
 
-
     /**
-     * Checks if there's a winner in the game.
+     * Checks if there's a winner in the current game state.
      * @return The mark of the winner, or null if there's no winner yet.
      */
     private fun checkWinner(): Mark? {
-        // Get the current state of the board and the players
-        val boardState = uiState.value.boardState
-        val playerOne = uiState.value.playerOne
-        val playerTwo = uiState.value.playerTwo
+        val marks = _boardState.value.marks
 
-        // Iterate over all possible winning lines
+        // Iterate over all winning lines
         for (i in lines.indices) {
             val (a, b, c) = lines[i]
 
-            // If all three positions in the line are filled
-            if (boardState[a] != null && boardState[b] != null && boardState[c] != null) {
-                // If all three positions have the same mark
-                if (boardState[a] == boardState[b] && boardState[a] == boardState[c]) {
-                    // Handle the winner and update the UI state
-                    boardState[a]?.let { handleWinner(if (playerOne.mark == it) playerOne else playerTwo) }
-                    _uiState.update { currentState ->
-                        currentState.copy(
-                            isGameFinished = true
-                        )
-                    }
-                    // Return the winning mark
-                    return boardState[a]
+            // If all cells in a line have the same mark, we have a winner
+            if (marks[a] != null && marks[b] != null && marks[c] != null) {
+                if (marks[a] == marks[b] && marks[a] == marks[c]) {
+                    // Handle the winner and return the winning mark
+                    marks[a]?.let { handleWinner(it) }
+                    return marks[a]
                 }
             }
         }
-
-        // If there are no empty positions left on the board, the game is a draw
-        for (i in boardState.indices) {
-            if (boardState[i] == null) return null
-        }
-        _uiState.update { currentState ->
-            currentState.copy(
-                isGameFinished = true
-            )
-        }
-        // Return null to indicate a draw
+        // If no winner is found, return null
         return null
     }
 
     /**
-     * Handles a move by a player.
-     * @param i The index of the move.
+     * Handles a move made by a player.
+     * @param i The index of the cell where the move is made.
      */
     fun handleMove(i: Int) {
-        // If the selected position is already filled or game is finished, ignore the move
-        if (uiState.value.boardState[i] != null || uiState.value.isGameFinished) {
+        // If the cell is already marked or the game is finished, ignore the move
+        if (_boardState.value.markFor(i) != null || isGameFinished()) {
             return
         }
-
-        // Update the UI state with the new move
-        _uiState.update { currentState ->
+        _boardState.update { currentState ->
+            // Update the board state with the new move
             currentState.copy(
-                // Update the board state with the new move
-                boardState = currentState.boardState.mapIndexed { index, value ->
+                marks = currentState.marks.mapIndexed { index, mark ->
                     if (index == i) {
-                        // If it's X's turn, place an X, otherwise place an O
-                        if (currentState.xIsNext) Mark.X else Mark.O
+                        // If the index matches the move, set the mark to the current player's mark
+                        currentState.currentTurn
                     } else {
-                        // Keep the existing value for other positions
-                        value
+                        // Otherwise, keep the existing mark
+                        mark
                     }
                 },
-                // Switch the turn to the other player
-                xIsNext = !currentState.xIsNext
+                currentTurn = if (currentState.currentTurn == Mark.X) Mark.O else Mark.X
             )
         }
-
-        // Check if the move resulted in a win
         checkWinner()
     }
 
     /**
-     * Handles the winner of the game.
-     * @param winner The player who won the game.
+     * Handles the situation when a winner is found.
+     * @param mark The mark of the winner.
      */
-    private fun handleWinner(winner: Player) {
-        // Update the UI state to indicate the winner and that the game is finished
-        _uiState.update { currentState ->
+    private fun handleWinner(mark: Mark) {
+        _boardState.update { currentState ->
             currentState.copy(
-                winner = winner,
-                isGameFinished = true
+                winner = mark
             )
         }
     }
 
     /**
-     * Initializes the game state.
-     * @param playerOne The first player.
-     * @param playerTwo The second player.
-     * @param gameInProgress Whether the game is in progress.
-     * @return The initialized game state.
-     */
-    private fun initializeGameState(
-        playerOne: Player,
-        playerTwo: Player,
-        gameInProgress: Boolean
-    ): GameUiState {
-        // Return a new game state with the provided players and game progress,
-        // and with default values for the other properties
-        return GameUiState(
-            playerOne = playerOne,
-            playerTwo = playerTwo,
-            gameInProgress = gameInProgress,
-            xIsNext = true,
-            isNameError = false,
-            boardState = List(9) { null },
-            winner = null,
-            isGameFinished = false
-        )
-    }
-
-    /**
-     * Restarts the game.
+     * Restarts the game by resetting the board state.
      */
     fun restartGame() {
-        // Update the UI state to restart the game with the current players
-        _uiState.update { currentState ->
-            initializeGameState(currentState.playerOne, currentState.playerTwo, true)
+        _boardState.update { currentState ->
+            currentState.copy(
+                marks = List(9) { null },
+                currentTurn = Mark.X,
+                winner = null
+            )
         }
     }
 
     /**
-     * Resets the game.
+     * Resets the game by resetting both the game setup and the board state.
      */
     fun resetGame() {
-        // Update the UI state to reset the game with new players
-        _uiState.update {
-            initializeGameState(Player("", Mark.X), Player("", Mark.O), false)
+        restartGame()
+        _gameSetup.update { currentState ->
+            currentState.copy(
+                playerOne = Player("", Mark.X),
+                playerTwo = Player("", Mark.O),
+                gameInProgress = false
+            )
         }
     }
 
     /**
-     * Initializes the game state when the ViewModel is created.
+     * Initializes the ViewModel by resetting the game.
      */
     init {
         resetGame()
     }
 
     /**
-     * Starts the game.
+     * Starts the game if both player names are valid.
      */
     fun startGame() {
-        // Update the UI state to start the game if the player names are valid
-        _uiState.update { currentState ->
+        _gameSetup.update { currentState ->
             val nameOneLength = currentState.playerOne.name.length
             val nameTwoLength = currentState.playerTwo.name.length
-
             if (nameOneLength in 3..20 && nameTwoLength in 3..20) {
                 currentState.copy(
                     gameInProgress = true,
@@ -248,37 +186,46 @@ class GameViewModel : ViewModel() {
 
     /**
      * Returns the player whose turn it is.
-     * @return The player whose turn it is.
+     * @return The current player.
      */
     fun currentTurn(): Player {
-        return if ((uiState.value.xIsNext && uiState.value.playerOne.mark == Mark.X) ||
-            (!uiState.value.xIsNext && uiState.value.playerOne.mark == Mark.O)
-        ) {
-            uiState.value.playerOne
-        } else {
-            uiState.value.playerTwo
-        }
+        return if (_boardState.value.currentTurn == _gameSetup.value.playerOne.mark) _gameSetup.value.playerOne else gameSetup.value.playerTwo
     }
 
     /**
-     * Returns a string indicating the winner of the game.
-     * @return A string indicating the winner of the game.
+     * Returns the winner of the game, or "TIE!" if the game is a tie.
+     * @return The winner of the game.
      */
     fun getWinner(): String {
-        // If there's no winner, return "TIE!", otherwise return the name of the winner
-        return if (uiState.value.winner == null) {
+        return if (_boardState.value.winner == null) {
             "TIE!"
         } else {
-            "${uiState.value.winner?.name} WON!"
+            "${
+                if (_boardState.value.winner == _gameSetup.value.playerOne.mark) {
+                    _gameSetup.value.playerOne.name
+                } else _gameSetup.value.playerTwo.name
+            } WON!"
         }
     }
 
     /**
-     * Returns whether player one's mark is X.
-     * @return True if player one's mark is X, false otherwise.
+     * Checks if Player One's mark is X.
+     * @return True if Player One's mark is X, false otherwise.
      */
     fun isXPlayerOneMark(): Boolean {
-        // Return true if player one's mark is X, false otherwise
-        return uiState.value.playerOne.mark == Mark.X
+        return _gameSetup.value.playerOne.mark == Mark.X
+    }
+
+    /**
+     * Checks if the game is finished.
+     * @return True if the game is finished, false otherwise.
+     */
+    fun isGameFinished(): Boolean {
+        for (mark in _boardState.value.marks) {
+            // If there's an empty cell and no winner, the game is not finished
+            if (mark == null && _boardState.value.winner == null) return false
+        }
+        // If all cells are marked or there's a winner, the game is finished
+        return true
     }
 }
