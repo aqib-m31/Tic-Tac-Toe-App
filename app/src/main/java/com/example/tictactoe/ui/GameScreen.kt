@@ -61,7 +61,8 @@ import com.example.tictactoe.ui.theme.TicTacToeTheme
 fun TicTacToeApp() {
     // Get the ViewModel and Collect the UI state from the ViewModel
     val viewModel: GameViewModel = viewModel()
-    val uiState = viewModel.uiState.collectAsState().value
+    val boardState = viewModel.boardState.collectAsState().value
+    val gameSetup = viewModel.gameSetup.collectAsState().value
 
     Scaffold(
         // Top app bar
@@ -77,23 +78,23 @@ fun TicTacToeApp() {
             verticalArrangement = Arrangement.Center
         ) {
             // If the game is not in progress, show the game start screen
-            if (!uiState.gameInProgress) {
+            if (!gameSetup.gameInProgress) {
                 GameStartScreen(
-                    playerOneName = uiState.playerOne.name,
-                    playerTwoName = uiState.playerTwo.name,
+                    playerOneName = gameSetup.playerOne.name,
+                    playerTwoName = gameSetup.playerTwo.name,
                     onPlayerOneNameChange = viewModel::onPlayerOneNameChange,
                     onPlayerTwoNameChange = viewModel::onPlayerTwoNameChange,
                     isXPlayerOneMark = viewModel.isXPlayerOneMark(),
                     updatePlayerOneMark = viewModel::updatePlayerMarks,
-                    isNameError = uiState.isNameError,
+                    isNameError = gameSetup.isNameError,
                     onStartGame = viewModel::startGame
                 )
             } else {
                 // If the game is in progress, show the game board
                 GameBoard(
-                    board = uiState.boardState,
+                    board = boardState.marks,
                     onSquareClick = viewModel::handleMove,
-                    isGameFinished = uiState.isGameFinished,
+                    isGameFinished = viewModel.isGameFinished(),
                     winner = viewModel.getWinner(),
                     onReset = viewModel::resetGame,
                     onOneMoreRound = viewModel::restartGame,
