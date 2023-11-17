@@ -150,8 +150,8 @@ class GameViewModel : ViewModel() {
         restartGame()
         _gameSetup.update { currentState ->
             currentState.copy(
-                playerOne = Player("", Mark.X),
-                playerTwo = Player("", Mark.O),
+                playerOne = Player("Player 1", Mark.X),
+                playerTwo = Player("Player 2", Mark.O),
                 gameInProgress = false
             )
         }
